@@ -46,13 +46,20 @@ fn complete_todo(id: u32) {
     save_todos(&todos).unwrap();
 }
 
+fn delete_todo(id: u32) {
+    let mut todos = load_todos().unwrap();
+    todos.retain(|todo| todo.id != id);
+    save_todos(&todos).unwrap();
+}
+
 fn main() {
     loop {
         println!("Select an option:");
         println!("1. Add a new task");
         println!("2. List all tasks");
         println!("3. Mark a task as completed");
-        println!("4. Exit");
+        println!("4. Delete a task");
+        println!("5. Exit");
 
         print!("Enter your choice: ");
         io::stdout().flush().unwrap(); // Ensure the prompt is displayed
@@ -81,6 +88,17 @@ fn main() {
                 }
             }
             "4" => {
+                print!("Enter the ID of the task to delete: ");
+                io::stdout().flush().unwrap();
+                let mut id = String::new();
+                io::stdin().read_line(&mut id).unwrap();
+                if let Ok(id) = id.trim().parse() {
+                    delete_todo(id);
+                } else {
+                    println!("Invalid ID. Please enter a number.");
+                }
+            }
+            "5" => {
                 println!("Exiting...");
                 break;
             }
