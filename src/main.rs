@@ -1,9 +1,7 @@
 use serde::{Serialize, Deserialize};
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::{self, Write, BufReader, BufWriter};
 use serde_json::Result;
-use std::env;
-
 #[derive(Serialize, Deserialize, Debug)]
 struct Todo {
     id: u32,
@@ -49,11 +47,44 @@ fn complete_todo(id: u32) {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    match args[1].as_str() {
-        "add" => add_todo(args[2].clone()),
-        "list" => list_todos(),
-        "complete" => complete_todo(args[2].parse().unwrap()),
-        _ => println!("Unknown command"),
+    loop {
+        println!("Select an option:");
+        println!("1. Add a new task");
+        println!("2. List all tasks");
+        println!("3. Mark a task as completed");
+        println!("4. Exit");
+
+        print!("Enter your choice: ");
+        io::stdout().flush().unwrap(); // Ensure the prompt is displayed
+
+        let mut choice = String::new();
+        io::stdin().read_line(&mut choice).unwrap();
+
+        match choice.trim() {
+            "1" => {
+                print!("Enter the task description: ");
+                io::stdout().flush().unwrap();
+                let mut task = String::new();
+                io::stdin().read_line(&mut task).unwrap();
+                add_todo(task.trim().to_string());
+            }
+            "2" => list_todos(),
+            "3" => {
+                print!("Enter the ID of the task to mark as completed: ");
+                io::stdout().flush().unwrap();
+                let mut id = String::new();
+                io::stdin().read_line(&mut id).unwrap();
+                if let Ok(id) = id.trim().parse() {
+                    complete_todo(id);
+                } else {
+                    println!("Invalid ID. Please enter a number.");
+                }
+            }
+            "4" => {
+                println!("Exiting...");
+                break;
+            }
+            _ => println!("Invalid choice. Please try again."),
+        }
     }
 }
