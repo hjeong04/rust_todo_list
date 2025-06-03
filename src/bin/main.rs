@@ -1,18 +1,31 @@
-use rust_todo_list::ThreadPool;
+use actix_cors::Cors;
+use actix_web::{web, App, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use serde_json::Result;
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{self, BufReader, BufWriter, Write};
-use std::net::TcpListener;
 use std::net::TcpStream;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Todo {
     id: u32,
     task: String,
     completed: bool,
+}
+
+#[derive(Debug, Clone)]
+struct Task {
+    id: usize,
+    description: String,
+    completed: bool,
+}
+
+struct AppState {
+    tasks: Mutex<Vec<Task>>,
 }
 
 fn load_todos() -> Result<Vec<Todo>> {
@@ -29,104 +42,94 @@ fn save_todos(todos: &Vec<Todo>) -> Result<()> {
     Ok(())
 }
 
-fn add_todo(task: String) {
-    let mut todos = load_todos().unwrap();
-    let id = todos.len() as u32 + 1;
-    let todo = Todo {
+#[actix_web::post("/add_todo")]
+async fn add_todo(data: web::Data<AppState>, task: String) -> impl Responder {
+    let mut todos = data.tasks.lock().unwrap();
+    let id = todos.len() + 1;
+    todos.push(Task {
         id,
-        task,
+        description: task,
         completed: false,
-    };
-    todos.push(todo);
-    save_todos(&todos).unwrap();
+    });
+    println!("Task added with ID: {}", id);
+    format!("Task added with ID: {}", id)
 }
 
-fn list_todos() {
-    let todos = load_todos().unwrap();
-    for todo in todos {
-        println!("{:?}", todo);
-    }
+#[actix_web::get("/list_todos")]
+async fn list_todos(data: web::Data<AppState>) -> impl Responder {
+    let todos = data.tasks.lock().unwrap();
+    let todo_list: Vec<String> = todos
+        .iter()
+        .map(|todo| {
+            format!(
+                "ID: {}, Task: {}, Completed: {}",
+                todo.id, todo.description, todo.completed
+            )
+        })
+        .collect();
+    println!("Listing all tasks:");
+    println!("{:?}", todo_list);
+    todo_list.join("\n")
 }
 
-fn complete_todo(id: u32) {
-    let mut todos = load_todos().unwrap();
-    if let Some(todo) = todos.iter_mut().find(|todo| todo.id == id) {
+#[actix_web::post("/complete_todo/{id}")]
+async fn complete_todo(data: web::Data<AppState>, id: web::Json<usize>) -> impl Responder {
+    let mut todos = data.tasks.lock().unwrap();
+    if let Some(todo) = todos.iter_mut().find(|todo| todo.id == *id) {
         todo.completed = true;
+        format!("Task with ID: {} marked as completed", id)
+    } else {
+        format!("Task with ID: {} not found", id)
     }
-    save_todos(&todos).unwrap();
 }
 
-fn delete_todo(id: u32) {
-    let mut todos = load_todos().unwrap();
-    todos.retain(|todo| todo.id != id);
-    save_todos(&todos).unwrap();
+#[actix_web::delete("/delete_todo/{id}")]
+async fn delete_todo(data: web::Data<AppState>, task_id: web::Path<usize>) -> impl Responder {
+    let mut todos = data.tasks.lock().unwrap();
+    if let Some(pos) = todos.iter().position(|todo| todo.id == *task_id) {
+        todos.remove(pos);
+        format!("Task with ID: {} deleted", task_id)
+    } else {
+        format!("Task with ID: {} not found", task_id)
+    }
 }
 
-fn main() {
-    // loop {
-    //     println!("Select an option:");
-    //     println!("1. Add a new task");
-    //     println!("2. List all tasks");
-    //     println!("3. Mark a task as completed");
-    //     println!("4. Delete a task");
-    //     println!("5. Exit");
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let data = web::Data::new(AppState {
+        tasks: Mutex::new(Vec::new()),
+    });
 
-    //     print!("Enter your choice: ");
-    //     io::stdout().flush().unwrap(); // Ensure the prompt is displayed
+    HttpServer::new(move || {
+        App::new()
+            .wrap(
+                Cors::default() // Enable CORS
+                    .allow_any_origin() // Allow requests from any origin
+                    .allow_any_method() // Allow any HTTP method
+                    .allow_any_header(),
+            ) // Allow any header
+            .app_data(data.clone())
+            .service(add_todo)
+            .service(list_todos)
+            .service(complete_todo)
+            .service(delete_todo)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
 
-    //     let mut choice = String::new();
-    //     io::stdin().read_line(&mut choice).unwrap();
+    // let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    //     match choice.trim() {
-    //         "1" => {
-    //             print!("Enter the task description: ");
-    //             io::stdout().flush().unwrap();
-    //             let mut task = String::new();
-    //             io::stdin().read_line(&mut task).unwrap();
-    //             add_todo(task.trim().to_string());
-    //         }
-    //         "2" => list_todos(),
-    //         "3" => {
-    //             print!("Enter the ID of the task to mark as completed: ");
-    //             io::stdout().flush().unwrap();
-    //             let mut id = String::new();
-    //             io::stdin().read_line(&mut id).unwrap();
-    //             if let Ok(id) = id.trim().parse() {
-    //                 complete_todo(id);
-    //             } else {
-    //                 println!("Invalid ID. Please enter a number.");
-    //             }
-    //         }
-    //         "4" => {
-    //             print!("Enter the ID of the task to delete: ");
-    //             io::stdout().flush().unwrap();
-    //             let mut id = String::new();
-    //             io::stdin().read_line(&mut id).unwrap();
-    //             if let Ok(id) = id.trim().parse() {
-    //                 delete_todo(id);
-    //             } else {
-    //                 println!("Invalid ID. Please enter a number.");
-    //             }
-    //         }
-    //         "5" => {
-    //             println!("Exiting...");
-    //             break;
-    //         }
-    //         _ => println!("Invalid choice. Please try again."),
-    //     }
+    // let pool = ThreadPool::new(4);
+
+    // for stream in listener.incoming().take(2) {
+    //     let stream = stream.unwrap();
+
+    //     pool.execute(|| {
+    //         handle_connection(stream);
+    //     });
     // }
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
-    let pool = ThreadPool::new(4);
-
-    for stream in listener.incoming().take(2) {
-        let stream = stream.unwrap();
-
-        pool.execute(|| {
-            handle_connection(stream);
-        });
-    }
-    println!("Shutting down.");
+    // println!("Shutting down.");
 }
 
 fn handle_connection(mut stream: TcpStream) {
@@ -139,7 +142,7 @@ fn handle_connection(mut stream: TcpStream) {
 
     let (status_line, filename) = if buffer.starts_with(get) {
         ("HTTP/1.1 200 OK", "index.html")
-    } else if (buffer.starts_with(sleep)) {
+    } else if buffer.starts_with(sleep) {
         thread::sleep(Duration::from_secs(5));
         ("HTTP/1.1 200 OK", "index.html")
     } else {

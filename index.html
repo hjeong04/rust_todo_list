@@ -4,24 +4,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Page</title>
+    <title>Todo List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        button {
+            margin: 5px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+    </style>
 </head>
 
 <body>
     <header>
-        <h1>Simple HTML Page</h1>
+        <h1>Todo List</h1>
     </header>
     <main>
-        <p>This is a simple HTML page created as an example.</p>
-        <ul>
-            <li>Item 1</li>
-            <li>Item 2</li>
-            <li>Item 3</li>
-        </ul>
+        <div>
+            <button onclick="addTodo()">Add a new todo</button>
+            <button onclick="listTodos()">List all todos</button>
+            <button onclick="markTodoCompleted()">Mark a todo as completed</button>
+            <button onclick="deleteTodo()">Delete a todo</button>
+        </div>
+        <div id="output"></div>
     </main>
     <footer>
-        <p>&copy; 2023 Simple Page</p>
+        <p>&copy; 2023 Todo List</p>
     </footer>
+
+    <script>
+        async function addTodo() {
+            const description = prompt("Enter the todo description:");
+            if (description) {
+                const response = await fetch("http://127.0.0.1:8080/add_todo", {
+                    method: "POST",
+                    body: description,
+                });
+                const result = await response.text();
+                alert(result);
+            }
+        }
+
+        async function listTodos() {
+            try {
+                const response = await fetch("http://127.0.0.1:8080/list_todos");
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const todos = await response.text();
+                const output = document.getElementById("output");
+                output.innerHTML = `<pre>${todos}</pre>`;
+            } catch (error) {
+                alert("Error fetching todos:", error);
+                alert("Failed to fetch todos. Check the console for more details.");
+            }
+        }
+
+        async function markTodoCompleted() {
+            const id = prompt("Enter the ID of the todo to mark as completed:");
+            if (id) {
+                const response = await fetch(`http://127.0.0.1:8080/complete_todo/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(parseInt(id)),
+                });
+                const result = await response.text();
+                alert(result);
+            }
+        }
+
+        async function deleteTodo() {
+            const id = prompt("Enter the ID of the todo to delete:");
+            if (id) {
+                const response = await fetch(`http://127.0.0.1:8080/delete_todo/${id}`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(parseInt(id)),
+                });
+                const result = await response.text();
+                alert(result);
+            }
+        }
+    </script>
 </body>
 
 </html>
