@@ -51,7 +51,7 @@
         async function addTodo() {
             const description = prompt("Enter the todo description:");
             if (description) {
-                const response = await fetch("http://127.0.0.1:8080/add_todo", {
+                const response = await fetch("http://127.0.0.1:7878/add_todo", {
                     method: "POST",
                     body: description,
                 });
@@ -62,7 +62,7 @@
 
         async function listTodos() {
             try {
-                const response = await fetch("http://127.0.0.1:8080/list_todos");
+                const response = await fetch("http://127.0.0.1:7878/list_todos");
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -78,7 +78,7 @@
         async function markTodoCompleted() {
             const id = prompt("Enter the ID of the todo to mark as completed:");
             if (id) {
-                const response = await fetch(`http://127.0.0.1:8080/complete_todo/${id}`, {
+                const response = await fetch(`http://127.0.0.1:7878/complete_todo/${id}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(parseInt(id)),
@@ -91,7 +91,7 @@
         async function deleteTodo() {
             const id = prompt("Enter the ID of the todo to delete:");
             if (id) {
-                const response = await fetch(`http://127.0.0.1:8080/delete_todo/${id}`, {
+                const response = await fetch(`http://127.0.0.1:7878/delete_todo/${id}`, {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(parseInt(id)),

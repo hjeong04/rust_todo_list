@@ -9,6 +9,8 @@ use std::net::TcpStream;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use actix_files::NamedFile;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Todo {
@@ -26,6 +28,11 @@ struct Task {
 
 struct AppState {
     tasks: Mutex<Vec<Task>>,
+}
+
+#[actix_web::get("/")]
+async fn index() -> actix_web::Result<NamedFile> {
+    Ok(NamedFile::open(PathBuf::from("index.html"))?)
 }
 
 fn load_todos() -> Result<Vec<Todo>> {
@@ -109,12 +116,13 @@ async fn main() -> std::io::Result<()> {
                     .allow_any_header(),
             ) // Allow any header
             .app_data(data.clone())
+            .service(index)
             .service(add_todo)
             .service(list_todos)
             .service(complete_todo)
             .service(delete_todo)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:7878")?
     .run()
     .await
 
